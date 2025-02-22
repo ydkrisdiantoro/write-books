@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Textarea Auto Expand</title>
+    <style>
+        body {
+            font-family: 'Times New Roman', Times, serif;
+            background-color: #f1f1f1;
+            margin: 62px 0 0 0;
+        }
+
+        /* Navbar tetap di atas */
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            font-size: 16px;
+            align-items: center;
+            z-index: 1000;
+            height: 42px;
+            padding: 10px 0;
+            display: flex;
+            background-color: #f1f1f1;
+        }
+
+        .navbar div.container{
+            width: 60vw;
+            margin: auto 20vw;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .navbar button {
+            background: white;
+            color: black;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            border-radius: 6px;
+            padding: 8px 12px;
+            border: 1px solid white;
+        }
+
+        .navbar button:hover {
+            background: #dedede;
+            border: 1px solid white;
+        }
+
+        /* Sidebar Kiri (Daftar Buku) */
+        #buku, #bab {
+            position: fixed;
+            top: 62px;
+            width: 18vw;
+            height: 100%;
+            overflow-y: auto;
+        }
+
+        #buku { left: 1vw; }
+        #bab { right: 1vw; }
+
+        #buku ul, #bab ul {
+            list-style: none;
+            padding: 0;
+            margin-top: 0;
+        }
+
+        #buku li, #bab li {
+            padding: 8px;
+            margin-bottom: 5px;
+            cursor: pointer;
+            border-radius: 6px;
+        }
+
+        /* Area Text */
+        #container {
+            margin-top: 62px;
+            margin-right: 20vw;
+            margin-left: 20vw;
+            margin-bottom: 20px;
+            padding: 20px 0;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 80vh;
+            border: none;
+            outline: none;
+            font-size: 18px;
+            resize: none;
+            box-sizing: border-box;
+            font-family: 'Times New Roman', Times, serif;
+            padding: 20px;
+            border-radius: 6px;
+        }
+
+        .fw-bold{
+            font-weight: bold;
+        }
+
+        .bg-primary{
+            background-color: #fff!important;
+        }
+
+        .disable-textarea{
+            border: 3px dotted #d6d6d6;
+            display: flex;
+            justify-content: center;
+            justify-items: center;
+            padding-top: 25%;
+        }
+
+        .d-flex{
+            display: flex;
+        }
+
+        .my-auto{
+            margin-top: auto;
+            margin-bottom: auto;
+        }
+
+        h3{
+            margin-right: 8px;
+            margin-left: 8px;
+        }
+
+        .btn-add{
+            background-color: #3082b1!important;
+            border-color: #3082b1!important;
+            color: white!important;
+        }
+
+        .btn-add:hover{
+            border-color: #3082b1!important;
+            color: #3082b1!important;
+            background-color: rgb(59, 184, 255, .1)!important;
+        }
+
+        .btn-delete{
+            background-color: #cc365f!important;
+            border-color: #cc365f!important;
+            color: white!important;
+        }
+
+        .btn-delete:hover{
+            border-color: #cc365f!important;
+            color: #cc365f!important;
+            background-color: rgba(204, 54, 95, .1)!important;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Navbar -->
+    <div class="navbar">
+        <div class="container my-auto">
+            <div>
+                <button class="btn-add" onclick="tambahBuku()">Tambah Buku</button>
+                <button class="btn-add" onclick="tambahBab()">Tambah Bab</button>
+            </div>
+            <div class="d-flex">
+                <span class="my-auto">Jumlah Kata: <span id="wordCount">0</span></span>
+            </div>
+            <div>
+                <button class="btn-delete" onclick="hapusBuku()">Hapus Buku</button>
+                <button class="btn-delete" onclick="hapusBab()">Hapus Bab</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar Kiri (Daftar Buku) -->
+    <div id="buku">
+        <h3>Daftar Buku</h3>
+        <ul id="bukuList"></ul>
+    </div>
+
+    <!-- Sidebar Kanan (Daftar Bab) -->
+    <div id="bab">
+        <h3>Bab</h3>
+        <ul id="babList"></ul>
+    </div>
+
+    <!-- Area Text -->
+    <div id="container">
+        <textarea id="autoExpand"></textarea>
+    </div>
+
+    <script>
+        const textarea = document.getElementById("autoExpand");
+        const wordCount = document.getElementById("wordCount");
+        let selectedBookId = null;
+        let selectedBabIndex = null;
+
+        function updateWordCount() {
+            const text = textarea.value.trim();
+            const words = text.length > 0 ? text.split(/\s+/).length : 0;
+            wordCount.textContent = words;
+        }
+
+        textarea.addEventListener("input", function () {
+            this.style.height = "auto";
+            this.style.height = this.scrollHeight + "px";
+            updateWordCount();
+            
+            // Simpan isi bab ke LocalStorage
+            if (selectedBookId !== null && selectedBabIndex !== null) {
+                let books = JSON.parse(localStorage.getItem("books")) || [];
+                let book = books.find(b => b.id === selectedBookId);
+                if (book) {
+                    book.bab[selectedBabIndex].isi_teks = this.value;
+                    localStorage.setItem("books", JSON.stringify(books));
+                }
+            }
+        });
+
+        textarea.addEventListener("keydown", function (e) {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                const cursorPos = this.selectionStart;
+                const textBefore = this.value.substring(0, cursorPos);
+                const textAfter = this.value.substring(cursorPos);
+                this.value = textBefore + "\n\n" + textAfter;
+                this.selectionStart = this.selectionEnd = cursorPos + 2;
+            }
+        });
+
+        function tambahBuku() {
+            const judul = prompt("Masukkan judul buku:");
+            if (!judul) return;
+            let books = JSON.parse(localStorage.getItem("books")) || [];
+            const newBook = { id: Date.now(), judul, tanggal_buat: new Date().toISOString().split("T")[0], deskripsi: "", bab: [] };
+            books.push(newBook);
+            localStorage.setItem("books", JSON.stringify(books));
+            loadBooks();
+        }
+
+        function tambahBab() {
+            if (selectedBookId === null) {
+                alert("Pilih buku terlebih dahulu!");
+                return;
+            }
+            const judulBab = prompt("Masukkan judul bab:");
+            if (!judulBab) return;
+            let books = JSON.parse(localStorage.getItem("books")) || [];
+            let book = books.find(b => b.id === selectedBookId);
+            if (book) {
+                book.bab.push({ judul_bab: judulBab, isi_teks: "", buku_id: selectedBookId });
+                localStorage.setItem("books", JSON.stringify(books));
+                loadBab(selectedBookId);
+            }
+        }
+
+        function loadBooks() {
+            let books = JSON.parse(localStorage.getItem("books")) || [];
+            const bukuList = document.getElementById("bukuList");
+            bukuList.innerHTML = "";
+            books.forEach(book => {
+                const li = document.createElement("li");
+                li.textContent = book.judul;
+                li.dataset.id = book.id;
+                li.dataset.title = book.judul;
+                li.id = book.id;
+                li.onclick = () => { selectBook(book.id); };
+                bukuList.appendChild(li);
+            });
+
+            disabledTexarea('PILIH BUKU');
+        }
+
+        function loadBab(bookId) {
+            let books = JSON.parse(localStorage.getItem("books")) || [];
+            let book = books.find(b => b.id === bookId);
+            if (!book) return;
+            const babList = document.getElementById("babList");
+            babList.innerHTML = "";
+            book.bab.forEach((bab, index) => {
+                const li = document.createElement("li");
+                li.textContent = bab.judul_bab;
+                li.dataset.index = index;
+                li.dataset.title = bab.judul_bab;
+                li.id = index;
+                li.onclick = () => { selectBab(bookId, index); };
+                babList.appendChild(li);
+            });
+
+            disabledTexarea('PILIH BAB');
+        }
+
+        function selectBook(bookId) {
+            selectedBookId = bookId;
+            selectedBabIndex = null;
+            loadBab(bookId);
+            highlightSelected();
+
+            disabledTexarea('PILIH BAB');
+            wordCount.textContent = '0';
+        }
+
+        function selectBab(bookId, babIndex) {
+            selectedBookId = bookId;
+            selectedBabIndex = babIndex;
+            let books = JSON.parse(localStorage.getItem("books")) || [];
+            let book = books.find(b => b.id === bookId);
+            disabledTexarea('PILIH BAB');
+            if (book) {
+                textarea.value = book.bab[babIndex].isi_teks;
+                textarea.style.height = textarea.scrollHeight + "px";
+                updateWordCount();
+                highlightSelected();
+
+                enableTexarea()
+            }
+        }
+
+        window.onload = function () {
+            loadBooks();
+        };
+
+        function hapusBuku() {
+            if (selectedBookId === null) {
+                alert("Pilih buku yang ingin dihapus!");
+                return;
+            }
+
+            if (!confirm("Apakah kamu yakin ingin menghapus buku ini beserta semua babnya?")) return;
+
+            let books = JSON.parse(localStorage.getItem("books")) || [];
+            books = books.filter(book => book.id !== selectedBookId);
+            localStorage.setItem("books", JSON.stringify(books));
+
+            selectedBookId = null;
+            selectedBabIndex = null;
+            textarea.value = "";
+            loadBooks();
+            document.getElementById("babList").innerHTML = "";
+        }
+
+        function hapusBab() {
+            if (selectedBookId === null || selectedBabIndex === null) {
+                alert("Pilih bab yang ingin dihapus!");
+                return;
+            }
+
+            if (!confirm("Apakah kamu yakin ingin menghapus bab ini?")) return;
+
+            let books = JSON.parse(localStorage.getItem("books")) || [];
+            let book = books.find(b => b.id === selectedBookId);
+            if (book) {
+                book.bab.splice(selectedBabIndex, 1);
+                localStorage.setItem("books", JSON.stringify(books));
+                selectedBabIndex = null;
+                textarea.value = "";
+                loadBab(selectedBookId);
+            }
+        }
+
+        function highlightSelected() {
+            document.querySelectorAll("#bukuList li").forEach(li => {
+                if (li.dataset.id == selectedBookId) {
+                    li.classList.add('fw-bold', 'bg-primary');
+                } else{
+                    li.classList.remove('fw-bold', 'bg-primary');
+                }
+            });
+
+            document.querySelectorAll("#babList li").forEach(li => {
+                if (parseInt(li.dataset.index) === selectedBabIndex) {
+                    li.classList.add('fw-bold', 'bg-primary');
+                } else{
+                    li.classList.remove('fw-bold', 'bg-primary');
+                }
+            });
+        }
+
+        function disabledTexarea($message){
+            autoExpand = document.getElementById("autoExpand");
+            autoExpand.value = $message;
+            autoExpand.disabled = true;
+            autoExpand.classList.add('disable-textarea');
+        }
+
+        function enableTexarea(){
+            autoExpand = document.getElementById("autoExpand");
+            autoExpand.disabled = false;
+            autoExpand.classList.remove('disable-textarea');
+        }
+    </script>
+
+</body>
+</html>
